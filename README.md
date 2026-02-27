@@ -2,9 +2,11 @@
 
 StellarVault is a professional non-custodial savings vault built on the **Stellar Network** using **Soroban smart contracts**. It allows users to securely deposit XLM into a personal vault, track their savings stats, and withdraw funds at any time.
 
-![StellarVault UI Mockup](https://raw.githubusercontent.com/UncleTom29/StellarVault/main/public/preview.png)
+![StellarVault UI Mockup](./stellarvault.png)
 
+## 📺 Demo Video
 
+[Watch Here](https://www.loom.com/share/545c28a298014af5ba1a86ca9f9a7629)
 
 ---
 
