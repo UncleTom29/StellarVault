@@ -1,13 +1,33 @@
-import { rpc, contract, TransactionBuilder, Networks, BASE_FEE, Address, nativeToScVal, scValToNative } from '@stellar/stellar-sdk';
+import * as StellarSdk from '@stellar/stellar-sdk';
 import { CFG } from '../config';
 import { cache } from './cache';
+
+// In v14, Soroban tools are under rpc and contract namespaces.
+// We extract them here to handle various bundler interop behaviors.
+const {
+  rpc,
+  contract,
+  TransactionBuilder,
+  Networks,
+  BASE_FEE,
+  Address,
+  nativeToScVal,
+  scValToNative
+} = StellarSdk;
 
 const rpcServer = new rpc.Server(CFG.RPC_URL, { allowHttp: false });
 
 const ct = () => {
   if (!CFG.CONTRACT_ID || CFG.CONTRACT_ID === 'YOUR_CONTRACT_ID')
     throw new Error('Contract not configured. Set VITE_CONTRACT_ID in your environment variables.');
-  return new contract.Contract(CFG.CONTRACT_ID);
+
+  // Try contract.Contract (v14 standard) or StellarSdk.Contract (legacy compatibility)
+  const ContractClass = contract?.Contract || StellarSdk.Contract;
+  if (!ContractClass) {
+    console.error('Stellar SDK Contract class not found. SDK structure:', Object.keys(StellarSdk));
+    throw new Error('Stellar SDK initialization error: Contract class missing.');
+  }
+  return new ContractClass(CFG.CONTRACT_ID);
 };
 
 async function sim(pk, fn, args = []) {
@@ -17,7 +37,11 @@ async function sim(pk, fn, args = []) {
     .setTimeout(30)
     .build();
   const s = await rpcServer.simulateTransaction(tx);
-  if (rpc.Api.isSimulationError(s)) throw new Error(s.error);
+
+  // Use rpc.Api (v14) or StellarSdk.SorobanRpc.Api (legacy)
+  const isError = (rpc?.Api?.isSimulationError) ? rpc.Api.isSimulationError(s) : false;
+  if (isError) throw new Error(s.error);
+
   return s.result?.retval ? scValToNative(s.result.retval) : null;
 }
 
@@ -74,8 +98,6 @@ export async function submit(xdr) {
 }
 
 export async function waitTx(hash) {
-  // Use a manual JSON-RPC fetch for polling so we bypass the SDK's internal
-  // XDR decoding for transaction metadata (avoids "Bad union switch" errors).
   for (let i = 0; i < 40; i++) {
     try {
       const res = await fetch(CFG.RPC_URL, {
@@ -93,7 +115,6 @@ export async function waitTx(hash) {
       if (result) {
         if (result.status === 'SUCCESS') return result;
         if (result.status === 'FAILED') throw new Error('Transaction failed on-chain');
-        // 'NOT_FOUND' means still pending — keep polling
       }
     } catch (e) {
       if (e.message === 'Transaction failed on-chain') throw e;
