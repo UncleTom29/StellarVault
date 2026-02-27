@@ -1,0 +1,5 @@
+/Users/ginmax/StellarVault/contract/target/debug/deps/darling_macro-94ee12ad344697bb.d: /Users/ginmax/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling_macro-0.20.10/src/lib.rs
+
+/Users/ginmax/StellarVault/contract/target/debug/deps/libdarling_macro-94ee12ad344697bb.dylib: /Users/ginmax/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling_macro-0.20.10/src/lib.rs
+
+/Users/ginmax/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/darling_macro-0.20.10/src/lib.rs:
