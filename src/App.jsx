@@ -1,7 +1,8 @@
-import React,{useState,useEffect}from'react';
+import React,{useState,useEffect,useCallback}from'react';
 import{Toaster,toast}from'react-hot-toast';
 import{useWallet}from'./hooks/useWallet';
 import{useVault,TX}from'./hooks/useVault';
+import{useEventStream}from'./hooks/useEventStream';
 import{CFG}from'./config';
 const STEPS={[TX.BUILD]:{p:20,l:'Building...'}, [TX.SIGN]:{p:45,l:'Sign in wallet...'}, [TX.SEND]:{p:68,l:'Submitting...'}, [TX.CONFIRM]:{p:85,l:'Confirming...'}};
 function TxBox({st,hash,txErr}){
@@ -16,12 +17,15 @@ function TxBox({st,hash,txErr}){
     {txErr&&<div style={{fontSize:'0.76rem',color:'var(--err)',marginTop:5}}>{txErr}</div>}
   </div>);
 }
-function VaultStats({vault,xlm,loading,updated,onRefresh}){
+function VaultStats({vault,xlm,loading,updated,onRefresh,streamActive}){
   if(!vault)return<div className="card" style={{textAlign:'center',color:'var(--mt)',padding:32}}>{loading?<><span className="sp"/> Loading...</>:'⚠️ Set VITE_CONTRACT_ID in .env'}</div>;
   return(<div className="card">
     <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
       <span className="cl" style={{marginBottom:0}}>Your Vault</span>
-      <button onClick={onRefresh} disabled={loading} style={{background:'none',border:'none',color:'var(--d)',cursor:'pointer',fontSize:'0.95rem'}}><span className={loading?'spin':''}>↻</span></button>
+      <div style={{display:'flex',alignItems:'center',gap:8}}>
+        {streamActive&&<span className="live-dot" title="Live updates active">● LIVE</span>}
+        <button onClick={onRefresh} disabled={loading} style={{background:'none',border:'none',color:'var(--d)',cursor:'pointer',fontSize:'0.95rem'}}><span className={loading?'spin':''}>↻</span></button>
+      </div>
     </div>
     <div className="stats">
       <div className="stat sf"><div className="sv">{vault.balance.toFixed(4)}</div><div className="sl">Vault Balance (XLM)</div></div>
@@ -60,7 +64,17 @@ function Actions({vault,xlm,deposit,withdraw,st,hash,txErr,reset}){
 export default function App(){
   const{pk,wid,busy,err,connect,disconnect,sign}=useWallet();
   const{vault,xlm,loading,st,hash,txErr,updated,refresh,deposit,withdraw,reset}=useVault(pk,sign);
+  const[streamActive,setStreamActive]=useState(false);
   const copy=t=>{navigator.clipboard.writeText(t).catch(()=>{});toast.success('Copied!',{duration:1200});};
+  const handleLiveEvent=useCallback(()=>{
+    setStreamActive(true);
+    refresh(true);
+  },[refresh]);
+  const{start,stop}=useEventStream(CFG.CONTRACT_ID,handleLiveEvent);
+  useEffect(()=>{
+    if(pk)start();
+    else{stop();setStreamActive(false);}
+  },[pk,start,stop]);
   return(<>
     <Toaster position="top-center" toastOptions={{style:{background:'#0e0e26',color:'#f0f0ff',border:'1px solid #1e1e42',borderRadius:9,fontFamily:'Inter,sans-serif',fontSize:'0.83rem'}}}/>
     <header className="hdr">
@@ -79,7 +93,8 @@ export default function App(){
         <div className="feats">
           <div className="feat">⭐ Multi-wallet via StellarWalletsKit</div>
           <div className="feat">📜 Non-custodial Soroban contract</div>
-          <div className="feat">⚡ Smart caching + live balance</div>
+          <div className="feat">⚡ Inter-contract XLM token calls</div>
+          <div className="feat">🔴 Real-time live event streaming</div>
         </div>
         <button className="btn bp" onClick={connect} disabled={busy} style={{minWidth:200}}>
           {busy?<><span className="sp"/>Connecting...</>:'🔗 Connect Wallet'}
@@ -87,12 +102,20 @@ export default function App(){
         {err&&<p className="em">⚠️ {err}</p>}
       </div>:<>
         <div style={{fontSize:'0.72rem',color:'var(--d)'}}>{pk.slice(0,8)}...{pk.slice(-6)}</div>
-        <VaultStats vault={vault} xlm={xlm} loading={loading} updated={updated} onRefresh={()=>refresh(true)}/>
+        <VaultStats vault={vault} xlm={xlm} loading={loading} updated={updated} onRefresh={()=>refresh(true)} streamActive={streamActive}/>
         <Actions vault={vault} xlm={xlm} deposit={deposit} withdraw={withdraw} st={st} hash={hash} txErr={txErr} reset={reset}/>
         <div className="card">
-          <p className="cl">Contract</p>
-          <div className="ci" onClick={()=>copy(CFG.CONTRACT_ID)}>📜 {CFG.CONTRACT_ID}</div>
-          <a style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:7,fontSize:'0.7rem',color:'var(--ac)',textDecoration:'none'}} href={`${CFG.EXPLORER}/contract/${CFG.CONTRACT_ID}`} target="_blank" rel="noopener noreferrer">🔍 View on Stellar Expert →</a>
+          <p className="cl">Contracts</p>
+          <div style={{marginBottom:8}}>
+            <div style={{fontSize:'0.67rem',color:'var(--d)',marginBottom:3}}>Vault Contract</div>
+            <div className="ci" onClick={()=>copy(CFG.CONTRACT_ID)}>📜 {CFG.CONTRACT_ID}</div>
+            <a style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:5,fontSize:'0.7rem',color:'var(--ac)',textDecoration:'none'}} href={`${CFG.EXPLORER}/contract/${CFG.CONTRACT_ID}`} target="_blank" rel="noopener noreferrer">🔍 View on Stellar Expert →</a>
+          </div>
+          <div>
+            <div style={{fontSize:'0.67rem',color:'var(--d)',marginBottom:3}}>XLM Token Contract (SAC)</div>
+            <div className="ci" onClick={()=>copy(CFG.XLM_TOKEN_ID)}>🪙 {CFG.XLM_TOKEN_ID}</div>
+            <a style={{display:'inline-flex',alignItems:'center',gap:4,marginTop:5,fontSize:'0.7rem',color:'var(--ac)',textDecoration:'none'}} href={`${CFG.EXPLORER}/contract/${CFG.XLM_TOKEN_ID}`} target="_blank" rel="noopener noreferrer">🔍 View XLM Token →</a>
+          </div>
         </div>
       </>}
     </main>
