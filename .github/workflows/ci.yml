@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main, "copilot/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  frontend:
+    name: Frontend – Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+        env:
+          # Example testnet contract ID — update via repository variable for other deployments
+          VITE_CONTRACT_ID: CANS7QSSARTWIP3YVA5IQ5WPO2DLCWEWQJPBIDL57GQTEVTCRMIOISVO
+          VITE_RPC_URL: https://soroban-testnet.stellar.org
+          VITE_HORIZON_URL: https://horizon-testnet.stellar.org
+
+  contract:
+    name: Soroban Contract – Test & Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache Cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            contract/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('contract/Cargo.lock') }}
+          restore-keys: ${{ runner.os }}-cargo-
+
+      - name: Run contract tests
+        working-directory: contract
+        run: cargo test
+
+      - name: Build contract (WASM)
+        working-directory: contract
+        run: cargo build --target wasm32-unknown-unknown --release
