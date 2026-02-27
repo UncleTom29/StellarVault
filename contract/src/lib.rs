@@ -1,5 +1,5 @@
 #![no_std]
-use soroban_sdk::{contract,contractimpl,contracttype,symbol_short,Address,Env,Map};
+use soroban_sdk::{contract,contractimpl,contracttype,symbol_short,Address,Env};
 #[contracttype]#[derive(Clone)]
 pub struct Vault{pub balance:i128,pub deposited:i128,pub withdrawn:i128,pub count:u32}
 #[contracttype]pub enum Key{Vault(Address),Init}
@@ -49,8 +49,8 @@ mod tests{
     let admin=Address::generate(&env);
     c.init(&admin);(env,c,admin)
   }
-  #[test]fn test_deposit(){let(_,c,_)=setup();let u=Address::generate(&_);c.deposit(&u,&1000);assert_eq!(c.get_vault(&u).balance,1000);}
-  #[test]fn test_withdraw(){let(_,c,_)=setup();let u=Address::generate(&_);c.deposit(&u,&5000);c.withdraw(&u,&2000);assert_eq!(c.get_vault(&u).balance,3000);}
-  #[test]#[should_panic(expected="insufficient")]fn test_overdraw(){let(_,c,_)=setup();let u=Address::generate(&_);c.deposit(&u,&100);c.withdraw(&u,&999);}
-  #[test]fn test_stats(){let(_,c,_)=setup();let u=Address::generate(&_);c.deposit(&u,&1000);c.deposit(&u,&500);let v=c.get_vault(&u);assert_eq!(v.deposited,1500);assert_eq!(v.count,2);}
+  #[test]fn test_deposit(){let(env,c,_)=setup();let u=Address::generate(&env);c.deposit(&u,&1000);assert_eq!(c.get_vault(&u).balance,1000);}
+  #[test]fn test_withdraw(){let(env,c,_)=setup();let u=Address::generate(&env);c.deposit(&u,&5000);c.withdraw(&u,&2000);assert_eq!(c.get_vault(&u).balance,3000);}
+  #[test]#[should_panic(expected="insufficient")]fn test_overdraw(){let(env,c,_)=setup();let u=Address::generate(&env);c.deposit(&u,&100);c.withdraw(&u,&999);}
+  #[test]fn test_stats(){let(env,c,_)=setup();let u=Address::generate(&env);c.deposit(&u,&1000);c.deposit(&u,&500);let v=c.get_vault(&u);assert_eq!(v.deposited,1500);assert_eq!(v.count,2);}
 }
