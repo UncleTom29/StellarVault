@@ -1,33 +1,33 @@
-import { Contract, SorobanRpc, TransactionBuilder, Networks, BASE_FEE, Address, nativeToScVal, scValToNative } from '@stellar/stellar-sdk';
+import { rpc, contract, TransactionBuilder, Networks, BASE_FEE, Address, nativeToScVal, scValToNative } from '@stellar/stellar-sdk';
 import { CFG } from '../config';
 import { cache } from './cache';
 
-const rpc = new SorobanRpc.Server(CFG.RPC_URL, { allowHttp: false });
+const rpcServer = new rpc.Server(CFG.RPC_URL, { allowHttp: false });
 
 const ct = () => {
   if (!CFG.CONTRACT_ID || CFG.CONTRACT_ID === 'YOUR_CONTRACT_ID')
     throw new Error('Contract not configured. Set VITE_CONTRACT_ID in your environment variables.');
-  return new Contract(CFG.CONTRACT_ID);
+  return new contract.Contract(CFG.CONTRACT_ID);
 };
 
 async function sim(pk, fn, args = []) {
-  const acc = await rpc.getAccount(pk);
+  const acc = await rpcServer.getAccount(pk);
   const tx = new TransactionBuilder(acc, { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
     .addOperation(ct().call(fn, ...args))
     .setTimeout(30)
     .build();
-  const s = await rpc.simulateTransaction(tx);
-  if (SorobanRpc.Api.isSimulationError(s)) throw new Error(s.error);
+  const s = await rpcServer.simulateTransaction(tx);
+  if (rpc.Api.isSimulationError(s)) throw new Error(s.error);
   return s.result?.retval ? scValToNative(s.result.retval) : null;
 }
 
 async function prep(pk, fn, args = []) {
-  const acc = await rpc.getAccount(pk);
+  const acc = await rpcServer.getAccount(pk);
   const tx = new TransactionBuilder(acc, { fee: BASE_FEE, networkPassphrase: Networks.TESTNET })
     .addOperation(ct().call(fn, ...args))
     .setTimeout(30)
     .build();
-  return rpc.prepareTransaction(tx);
+  return rpcServer.prepareTransaction(tx);
 }
 
 export async function getVault(pk) {
@@ -68,7 +68,7 @@ export async function buildWithdraw(pk, xlm) {
 
 export async function submit(xdr) {
   const tx = TransactionBuilder.fromXDR(xdr, Networks.TESTNET);
-  const r = await rpc.sendTransaction(tx);
+  const r = await rpcServer.sendTransaction(tx);
   if (r.status === 'ERROR') throw new Error('Submit error');
   return r.hash;
 }
